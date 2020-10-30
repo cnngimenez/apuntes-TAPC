@@ -1,0 +1,14 @@
+@keyframes flash-bibref{
+  0% {background-color: #8f8;}
+  50% {background-color: #fff;}
+  100% {background-color: #8f8;}
+}
+
+a:target + p.org-bibitem {
+  background-color: #8f8;
+  animation-iteration-count: 4;
+  animation-name: flash-bibref;
+  animation-duration: 1s;
+  animation-play-state: running;
+  animation-delay: 0.5s;
+}

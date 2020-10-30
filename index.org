@@ -1,0 +1,517 @@
+El siguiente es un apunte escrito para el curso /Tópicos Avanzados en Programación Concurrente/. 
+
+- Fuentes de este apunte: [[https://github.com/cnngimenez/apuntes-TAPC][Repositorio de Github]]
+
+https://i.creativecommons.org/l/by-sa/4.0/88x31.png
+
+This work is licensed under a [[http://creativecommons.org/licenses/by-sa/4.0/][Creative Commons Attribution-ShareAlike 4.0 International License]].
+
+Este obra está bajo una [[http://creativecommons.org/licenses/by-sa/4.0/][licencia de Creative Commons Reconocimiento-CompartirIgual 4.0 Internacional]].
+
+
+#+BEGIN_SRC latex :file imgs/1.overview.png :results link file
+\begin{tikzpicture}
+  [
+  %% spy using outlines={rectangle, red, magnification=1, size=5cm, connect spies},
+  every node/.append style={concept, align=center}
+  ]
+  \path[mindmap,
+  concept color=black, text=white,
+  level 1/.append style={sibling angle=75, level distance=7cm},
+  grow cyclic
+  ]
+  node {Concurrencia}
+  %
+  child[concept color=green!50!black]{node {Problema de sincronización}
+    child[concept color=red!50!black] {node {Condición de carrera}}
+    child{node {Mecanismos}
+      child{node {Lock}}
+      child{node {Semáforos}}
+      child{node {Condiciones}}
+      child{node {Eventos}}
+      child{node {Monitores}}
+    }
+    child {node {Sección crítica}
+      child[sibling angle=50] {node {Operación Atómica}}
+      child[sibling angle=50] {node {Cumplen}
+        child{node {Exclusión mutua}}
+        child{node {Progreso}}
+        child{node {Espera limitada}}
+      }
+      child[sibling angle=50, concept color=red!50!black] {node {Problemas}
+        child {node {Deadlock}}
+        child {node {Starvation}}
+        child {node {Livelock}}
+      }
+    }    
+  }
+  %
+  child[concept color=green!50!black]{node {Hilos}
+    % child {node {API}
+    %   child {node{start()}}
+    %   child {node{join()}}
+    %   child {node{sleep()}}
+    %   child {node{yield()}}
+    % }
+    child {node (hiloestado) {Estados}
+      child {node {Creado}}
+      child {node {Listo}}
+      child {node {Ejecutando}}
+      child {node {Bloqueado}}
+      child {node {Terminado}}
+    }
+    child {node {Propiedades}
+      child {node {Seguridad}
+        child {node {Exclusión mutua}}
+        child {node {Condición de sincro.}}
+        child {node {Evitar Deadlock}}
+      }
+      child {node {Liveness}
+        child {node {Evitar inanición}}
+      }
+      child {node {Indeterminismo}}
+    }
+  }
+  % 
+  child[concept color=blue!50!black] {node {Algoritmos}
+    child {node (algdist) {Distribuídos}
+      child {node {Clusters}}
+    }
+    child {node (algpar) {Paralelos}
+      child {node {Dividir problemas grandes en pequeños}}
+    }
+    child {node (algsec) {Secuenciales}}
+  }
+  % 
+  child[concept color=orange] {node {Multitarea}
+    child{node {Planificador de procesos}
+      child{node {Apropiativo}}
+      child{node {Cooperativo}}
+    }
+  }
+  % 
+  child[concept color=green!50!black] {node {Topología de hardware}
+    child {node {Computación distribuída}}
+    child {node {Multi\-programación}
+      child {node {Tiempo compartido}}
+    }
+    child {node {Multi\-procesamiento}
+      child {node {Acoplados}
+        child {node {Fuerte\-mente}}
+        child {node {Débil\-mente}}
+      }
+    }
+  };
+
+  \node[annotation, fill=red!20] at (algpar.north west) {%
+    Las instrucciones se pueden ejecutar simultáneamente.};
+
+  % \tikzstyle{every node}=[fill=green]
+  % [every node/.style={fill=green, align=center}]    
+  % \spy[rectangle, red] on (algdist) in node at (10,10);
+\end{tikzpicture}
+#+END_SRC
+
+#+RESULTS:
+[[file:imgs/1.overview.png]]
+
+* Concurrencia
+Dos tareas activas al mismo tiempo. 
+
+Con o sin soporte multitarea del hardware (paralelismo exige soporte de hardware).
+
+** Procesos
+Una actividad de concurrente.
+
+** Hilos de ejecución (threads)
+Trabajar con muchos hilos no necesariamente aumenta la eficiencia de la ejecución proporcionalmente.
+
+* Características
+
+** Competición
+Pelearse por un recurso.
+*** Deadlock
+Trabarse entre sí.
+*** Starvation
+Un proceso nunca puede llegar a completarse.
+
+** Cooperación
+- Trabajan de forma independiente.
+- En algún momento se sincronizan y cooperan.
+
+* Propiedades
+
+** Seguridad y de vida
+Un programa hace lo que fue pensado o diseñado.
+
+- Dos procesos no pueden mezclarse.
+- Se requiere una *exclusión mutua* para no mezclar los recursos.
+    
+*** Livelock
+Cuando los procesos no concuerdan al compartir información o estado.
+
+*** Viveza
+- Justicia :: Un proceso que puede ser ejecutado, va a ser ejecutado. Que todos los procesos reciban un tiempo de ejecución de manera justa.
+
+* Hilos
+Un hilo está activo cuando está "con vida" en el sistema. O sea que está en un estado: listo, en ejecución, bloqueado.
+
+** Estados
+
+*** Creado
+    
+*** Listo
+Cuando comienza. Scheduler indica cuándo pasar a ejecución.
+    
+- Puede pasar a *ejecución*.
+
+*** En ejecución
+Las instrucciones se ejecuta en el CPU.
+
+- Cuando se bloquea pasa a *bloqueado*.
+- Puede pasar a *listo*.
+
+*** Bloqueado
+Se bloquea debido a que requiere de un recurso.
+
+- Al desbloquearse pasa a *listo*.
+
+*** Terminado
+Puede ser por falla o porque no hay más instrucciones.
+
+** Métodos
+
+*** start
+
+*** join
+
+*** sleep
+
+*** yield
+Pasar a otro proceso.
+
+*** currentThread
+
+: Runtime.getRuntime().availableProcesors()
+
+** Propiedades y características
+
+*** Seguridad / safety
+Un proceso es seguro cuando:
+- Se utiliza exclusión mutua
+- Condición de sinc.
+- Se evita el deadlock.
+*** Viveza / liveness
+- Evitar inanición (que se quede en estado de Bloqueado siempre).
+*** Características de PC
+- Indeterminismo : No se puede asegurar la salida porque no se sabe cómo actuará la concurrencia (en qué orden se ejecutan primero o último).
+
+** Inconsistencia
+Lo siguiente puede suceder.
+
+*** Condición de carrera
+Cuando se comparte un recurso (o variable) entre dos procesos.
+
+
+* Python
+#+begin_src latex
+\begin{tikzpicture}
+  [
+  every node/.append style={concept, align=center}
+  ]
+  \path[mindmap,
+  concept color=black, text=white,
+  %% level 1/.append style={sibling angle=75, level distance=7cm},
+  grow cyclic
+  ]
+  node {Concurrencia en Python}
+  %
+  child[concept color=green!50!black]{ node {\texttt{threading}}
+    child[concept color=blue!50!black] {node (threadsinc) {Sincro\-nización}}
+    child[concept color=blue!50!black] {node {GIL}}
+  }
+  child[concept color=green!50!black] {node {\texttt{multi\-processing}}
+    child[concept color=blue!50!black] {node (procsinc) {Sincro\-nización}}
+    child[concept color=blue!50!black] {node {Pools}}
+    child[concept color=red!50!black] {node {\sout{GIL}}}
+  }
+  child[concept color=green!50!black]{ node{\texttt{concurrent. futures}}}
+  child[concept color=green!50!black]{ node{\texttt{subprocess}}}
+  child[concept color=green!50!black]{ node{\texttt{sched}}}
+  child[concept color=green!50!black]{ node{\texttt{queue}}};
+
+  \node[annotation, fill=red!20, below left,
+  left=of procsinc.south west] (ident) {Los mecanismos son idénticos.};
+  
+  \draw[arrows=->, ultra thick, blue, bend left]
+  (procsinc) edge (ident.east);
+  \draw[arrows=->, ultra thick, blue, bend right]
+  (threadsinc) edge (ident.north west);
+\end{tikzpicture}
+#+end_src
+** Threads
+- https://docs.python.org/3/tutorial/stdlib2.html#multi-threading
+- threading module:
+https://docs.python.org/3/library/threading.html#module-threading
+- http://rosettacode.org/wiki/Dining_philosophers#Python
+- Reader-writer problem:
+http://rosettacode.org/wiki/Synchronous_concurrency#Python
+- Queues to simplify thread creation and processing:
+https://docs.python.org/3/library/queue.html#module-queue
+
+** Coroutines and tasks
+- https://docs.python.org/3/library/asyncio-task.html?highlight=coroutine
+- asyncio module that implements the ~async~ and ~await~. https://docs.python.org/3/library/asyncio.html?highlight=asyncio#module-asyncio
+- The ~async def~ returns a Coroutine object: https://docs.python.org/3/c-api/coro.html?highlight=coroutine
+- https://docs.python.org/3/reference/compound_stmts.html#async-def
+- PEP-0492 that proposes the Coroutine. https://www.python.org/dev/peps/pep-0492/
+
+
+* Problema de sincronización
+Para evitar la condición de carrera, el hilo se debe tomar el dato, modificarlo y después soltarlo.
+
+- mutex: exclusión mutua
+- java usa syncronized.
+
+~syncronized~ se utiliza tanto en la lectura y escritura del dato compartido.
+
+#+BEGIN_SRC java
+public synchronized getData(){
+}
+public synchronized setData(){
+}
+#+END_SRC
+
+** Sección crítica
+
+Se considera que el código de la sección crítica es una operación atómica. 
+
+*** Uso de la sección crítica
+
+
+*** Debe Cumplir
+- Exclusión mutua
+- Progreso
+- Espera limitada
+
+*** Mecanismos
+
+**** Semáforos
+Existen binarios o generales.
+
+- Binario : Piden un permiso.
+- General : Pueden pedir N permisos.
+
+Tiene dos operaciones (son atómicas):
+
+- Adquirir permiso :
+  - Si el semáforo no es nulo, se puede adquirir el permiso.
+  - Si el semáforo es nulo, se suspende.
+- Liberar permiso
+  - Si hay procesos suspendidos, activa uno.
+
+El liberar puede liberar uno o más de uno dependiendo si el semáforo es general o binario.
+
+Observar que tomar un permiso con ~sem.aquire(1)~ es más simple que ~sem.aquire(4)~. Por lo que simularía daría prioridad a los hilos que usen un número menor de permisos.
+
+Cuando un semáforo se libera el scheduler determina qué otro thread adquiere la ejecución y el semáforo.
+
+Al utilizar varios semáforos o varios procesos a sincronizar, se torna difícil de entender y gestionar. Es mejor usar los semáforos cuando hay procesos que se sincronizan al estilo "primero uno y después el otro".
+
+También, se puede utilizar semáforos para establecer un orden de ejecución o de precedencia de los procesos. 
+
+#+BEGIN_SRC dot :file imgs/process.png :results link file
+  digraph {
+  P0 -> P1 [label=Sem0_1];
+  P0 -> P2 [label=Sem0_2];
+  P1 -> P3 [label=Sem1_3];
+  P2 -> P3 [label=Sem2_3];
+  }
+#+END_SRC
+
+#+RESULTS:
+[[file:imgs/process.png]]
+
+#+BEGIN_SRC ada
+  procedure P0 is
+  begin
+      -- Hacer algo
+      Liberar (Sem0_1);
+      Liberar (Sem0_2);
+  end P0;
+
+  procedure P1 is
+  begin
+      -- Hacer algo
+      Liberar (Sem1_3);
+  end P1;
+
+  procedure P2 is
+  begin
+      -- Hacer algo
+      Liberar (Sem2_3);
+  end P2;
+#+END_SRC
+
+
+**** Monitores
+Están en estrecha relación con POO y con un mayor nivel de abstracción. Es un recurso compartido (el dato) con métodos sincronizados. 
+
+Usualmente, el monitor (el que posee los métodos sincronizados) es el objeto pasivo.
+
+- Los métodos con syncronized significa que se produce una exclusión mutua.
+- Cada proceso tiene su lock.
+- ~wait()~ bloquea el proceso actual y libera para que el próximo proceso pueda utilizarse.
+- ~notify(), notifyAll()~
+
+***** Synchronized de Java
+Un método declarado como ~synchonized~ tiene dos efectos:
+
+- No es posible que se produzcan dos invocaciones de méntodos synchronized de un mismo objeto al mismo tiempo.
+- Establece una relación de "sucede-antes" con cualquier invocación subsecuente de un método de sincronización. En otras palabras, se establece un orden en la ejecución de los métodos. 
+
+En otras palabras, se previene la interferencia entre los hilos y la generación de inconsistencias. 
+
+Se explica en la sección [[https://docs.oracle.com/javase/tutorial/essential/concurrency/syncmeth.html][Syncronization de The Java(tm) Tutorials]].
+
+**** Locks
+
+*** Problemas clásicos
+En todos los modelos hay:
+
+- Objetos activos
+- Objetos pasivos : Recursos que se comparten entre todos los objetos activos.
+
+**** Filósofos cenando
+
+- Objetos activos: Filósofos cenando/pensando.
+- Objetos pasivos: tenedores (o palillos).
+
+Se puede utilizar el ~tryAcquire()~ de un semáforo para intentar adquirir un tenedor. Si está libre lo toma, sino lo deja.
+
+**** Barbero dormilón - rendez-vous
+
+- Objetos activos: Barbero, clientes.
+- Objetos pasivos: corte, barba.
+
+- El barbero se duerme si no hay clientes en espera
+- Clientes despierta al barbero para atenderlo
+- Barbero despierta al cliente al terminar de razurar
+- Nuevos clientes esperan si el barbero está ocupado.
+
+**** Productor-consumidor
+- Objetos activos: Productores y consumidores.
+- Objectos pasivos: datos y buffer.
+
+Dos tipos de buffer (o de problemas Productor-Consumidor):
+- Buffer limitiado
+- Buffer ilimitado
+
+Productor-consumidor con un buffer de tamaño 1 (de un solo dato) es muy poco utilizado.
+
+Esquema:
+
+#+BEGIN_SRC ada
+  procedure Productor is
+  begin
+      loop
+          Producir (Dato);
+          Poner_Dato (Dato, Buffer);
+          Liberar (dato_disponible);
+      end loop;
+  end Productor;
+#+END_SRC
+
+#+BEGIN_SRC ada
+  procedure Consumidor is
+  begin
+      loop
+          dato := Sacar_Dato(Buffer);
+          Cosumir (Dato);
+      end loop;
+  end Consumidor;
+#+END_SRC
+
+
+
+**** Lectores-escritores
+
+**** Cocinero-comensal
+
+**** Fumadores
+Todos los fumadores tienen que entrar a la sala. Cada fumador tiene algún item para armar el cigarrillo. Al entrar a la sala, arma el cigarrillo y lo fuma. En la sala se incorpora un item necesario para armar el cigarrillo.
+
+- Objeto activos: Fumadores
+- Objeto pasivo: Sala
+
+La sala es el monitor con métodos synchronized: ~entrar_fumar(int ingredientes)~, ~terminar_fumar()~ y ~colocar(int noesta)~. El último incorpora un ítem en la sala para que el fumador arme el cigarrillo.
+
+
+
+* Meta     :noexport:
+
+  # ----------------------------------------------------------------------
+  #+TITLE:  Apuntes
+  #+AUTHOR: Christian Gimenez
+  #+DATE:   16 oct 2020
+  #+EMAIL:
+  #+DESCRIPTION: 
+  #+KEYWORDS: 
+
+  #+STARTUP: inlineimages hidestars content hideblocks entitiespretty
+  #+STARTUP: indent fninline latexpreview
+
+  #+OPTIONS: H:3 num:t toc:t \n:nil @:t ::t |:t ^:{} -:t f:t *:t <:t
+  #+OPTIONS: TeX:t LaTeX:t skip:nil d:nil todo:t pri:nil tags:not-in-toc
+  #+OPTIONS: tex:imagemagick
+
+  #+TODO: TODO(t!) CURRENT(c!) PAUSED(p!) | DONE(d!) CANCELED(C!@)
+
+  # -- Export
+  #+LANGUAGE: en
+  #+LINK_UP:   
+  #+LINK_HOME: 
+  #+EXPORT_SELECT_TAGS: export
+  #+EXPORT_EXCLUDE_TAGS: noexport
+
+  # -- HTML Export
+  #+INFOJS_OPT: view:info toc:t ftoc:t ltoc:t mouse:underline buttons:t path:libs/org-info.js
+  #+HTML_LINK_UP: index.html
+  #+HTML_LINK_HOME: index.html
+  #+XSLT:
+
+  # -- For ox-twbs or HTML Export
+  #+HTML_HEAD: <link href="libs/bootstrap.min.css" rel="stylesheet">
+  # -- -- LaTeX-CSS
+  #+HTML_HEAD: <link href="css/style-org.css" rel="stylesheet">
+
+  #+HTML_HEAD: <script src="libs/jquery.min.js"></script> 
+  #+HTML_HEAD: <script src="libs/bootstrap.min.js"></script>
+
+  #+HTML_HEAD: <meta name="description" content="Apuntes del curso de Tópicos Avanzados en Programación Concurrente. ">
+  #+HTML_HEAD: <meta name="keywords" content="Concurrencia, Paralelismo, Semáforos, Thread, Hilos">
+  #+LANGUAGE: es
+
+
+
+  # -- LaTeX Export
+  # #+LATEX_CLASS: article
+  # -- -- Tikz
+  #+LATEX_HEADER: \usepackage{tikz}
+  #+LATEX_HEADER: \usetikzlibrary{shapes.geometric}
+  #+LATEX_HEADER: \usetikzlibrary{shapes.symbols}
+  #+LATEX_HEADER: \usetikzlibrary{positioning}
+  #+LATEX_HEADER: \usetikzlibrary{trees}
+
+  # -- Tikz used in src ambients
+  #+PROPERTY: header-args:latex :headers '("\\usepackage{tikz}" "\\usetikzlibrary{shapes.geometric}" "\\usetikzlibrary{shapes.symbols}" "\\usetikzlibrary{positioning}" "\\usetikzlibrary{arrows.meta}""\\usetikzlibrary{trees}" "\\usetikzlibrary{mindmap}" "\\usetikzlibrary{spy}") :results output :imagemagick t :border 1em :iminoptions -density 600 :imoutoptions -resize 500 
+
+  # #+LATEX_HEADER_EXTRA:
+
+  # Local Variables:
+  # org-hide-emphasis-markers: t
+  # org-use-sub-superscripts: "{}"
+  # fill-column: 80
+  # visual-line-fringe-indicators: t
+  # ispell-local-dictionary: "british"
+  # End:
