@@ -521,7 +521,7 @@ La sala es el monitor con métodos synchronized: ~entrar_fumar(int ingredientes)
   #+LATEX_HEADER: \usetikzlibrary{trees}
 
   # -- Tikz used in src ambients
-  #+PROPERTY: header-args:latex :headers '("\\usepackage{tikz}" "\\usetikzlibrary{shapes.geometric}" "\\usetikzlibrary{shapes.symbols}" "\\usetikzlibrary{positioning}" "\\usetikzlibrary{arrows.meta}""\\usetikzlibrary{trees}" "\\usetikzlibrary{mindmap}" "\\usetikzlibrary{spy}") :results output :imagemagick t :border 1em :iminoptions -density 600 :imoutoptions -resize 500 
+  #+PROPERTY: header-args:latex :headers '("\\usepackage{tikz}" "\\usetikzlibrary{shapes.geometric}" "\\usetikzlibrary{shapes.symbols}" "\\usetikzlibrary{positioning}" "\\usetikzlibrary{arrows.meta}""\\usetikzlibrary{trees}" "\\usetikzlibrary{mindmap}" "\\usetikzlibrary{spy}") :results output :imagemagick t :border 1em :iminoptions -density 600 :imoutoptions -resize 1000 
 
   # #+LATEX_HEADER_EXTRA:
 
