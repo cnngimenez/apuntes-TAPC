@@ -151,7 +151,7 @@ Un programa hace lo que fue pensado o diseñado.
 Cuando los procesos no concuerdan al compartir información o estado.
 
 *** Viveza
-- Justicia :: Un proceso que puede ser ejecutado, va a ser ejecutado. Que todos los procesos reciban un tiempo de ejecución de manera justa.
+- Justicia : Un proceso que puede ser ejecutado, va a ser ejecutado. Que todos los procesos reciban un tiempo de ejecución de manera justa.
 
 * Hilos
 Un hilo está activo cuando está "con vida" en el sistema. O sea que está en un estado: listo, en ejecución, bloqueado.
