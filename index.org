@@ -158,6 +158,30 @@ Un hilo está activo cuando está "con vida" en el sistema. O sea que está en u
 
 ** Estados
 
+#+BEGIN_SRC dot :file imgs/estados.png :results link file
+digraph {
+rankdir=LR;
+
+Creado;
+Listo;
+Bloqueado [fillcolor="#ffaaaa", style=filled];
+ejec [label="En ejecución"];
+Terminado;
+
+Creado -> Listo [label="start()"];
+Listo -> ejec [label="scheduler"]; 
+ejec -> Terminado [label="termina/falla"];
+ejec -> Listo [label="scheduler"];
+
+Bloqueado -> Listo [label="Se desbloquea/wait()"];
+ejec -> Bloqueado [label="Se bloquea/wait()"];
+}
+#+END_SRC
+
+#+RESULTS:
+[[file:imgs/estados.png]]
+
+
 *** Creado
     
 *** Listo
@@ -181,18 +205,11 @@ Puede ser por falla o porque no hay más instrucciones.
 
 ** Métodos
 
-*** start
-
-*** join
-
-*** sleep
-
-*** yield
-Pasar a otro proceso.
-
-*** currentThread
-
-: Runtime.getRuntime().availableProcesors()
+- Start :
+- Join :
+- Sleep :
+- Yield : Pasar a otro proceso.
+- currentThread : ~Runtime.getRuntime().availableProcesors()~
 
 ** Propiedades y características
 
