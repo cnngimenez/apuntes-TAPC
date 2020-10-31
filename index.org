@@ -277,60 +277,6 @@ Lo siguiente puede suceder.
 Cuando se comparte un recurso (o variable) entre dos procesos.
 
 
-* Python
-#+begin_src latex
-\begin{tikzpicture}
-  [
-  every node/.append style={concept, align=center}
-  ]
-  \path[mindmap,
-  concept color=black, text=white,
-  %% level 1/.append style={sibling angle=75, level distance=7cm},
-  grow cyclic
-  ]
-  node {Concurrencia en Python}
-  %
-  child[concept color=green!50!black]{ node {\texttt{threading}}
-    child[concept color=blue!50!black] {node (threadsinc) {Sincro\-nización}}
-    child[concept color=blue!50!black] {node {GIL}}
-  }
-  child[concept color=green!50!black] {node {\texttt{multi\-processing}}
-    child[concept color=blue!50!black] {node (procsinc) {Sincro\-nización}}
-    child[concept color=blue!50!black] {node {Pools}}
-    child[concept color=red!50!black] {node {\sout{GIL}}}
-  }
-  child[concept color=green!50!black]{ node{\texttt{concurrent. futures}}}
-  child[concept color=green!50!black]{ node{\texttt{subprocess}}}
-  child[concept color=green!50!black]{ node{\texttt{sched}}}
-  child[concept color=green!50!black]{ node{\texttt{queue}}};
-
-  \node[annotation, fill=red!20, below left,
-  left=of procsinc.south west] (ident) {Los mecanismos son idénticos.};
-  
-  \draw[arrows=->, ultra thick, blue, bend left]
-  (procsinc) edge (ident.east);
-  \draw[arrows=->, ultra thick, blue, bend right]
-  (threadsinc) edge (ident.north west);
-\end{tikzpicture}
-#+end_src
-** Threads
-- https://docs.python.org/3/tutorial/stdlib2.html#multi-threading
-- threading module:
-https://docs.python.org/3/library/threading.html#module-threading
-- http://rosettacode.org/wiki/Dining_philosophers#Python
-- Reader-writer problem:
-http://rosettacode.org/wiki/Synchronous_concurrency#Python
-- Queues to simplify thread creation and processing:
-https://docs.python.org/3/library/queue.html#module-queue
-
-** Coroutines and tasks
-- https://docs.python.org/3/library/asyncio-task.html?highlight=coroutine
-- asyncio module that implements the ~async~ and ~await~. https://docs.python.org/3/library/asyncio.html?highlight=asyncio#module-asyncio
-- The ~async def~ returns a Coroutine object: https://docs.python.org/3/c-api/coro.html?highlight=coroutine
-- https://docs.python.org/3/reference/compound_stmts.html#async-def
-- PEP-0492 that proposes the Coroutine. https://www.python.org/dev/peps/pep-0492/
-
-
 * Problema de sincronización
 Para evitar la condición de carrera, el hilo se debe tomar el dato, modificarlo y después soltarlo.
 
@@ -727,6 +673,72 @@ Todos los fumadores tienen que entrar a la sala. Cada fumador tiene algún item 
 La sala es el monitor con métodos synchronized: ~entrar_fumar(int ingredientes)~, ~terminar_fumar()~ y ~colocar(int noesta)~. El último incorpora un ítem en la sala para que el fumador arme el cigarrillo.
 
 *** TODO Solución
+
+
+* Hilos en los lenguajes de programación
+** Ada
+En Ada los hilos se denominan Tasks.
+
+- [[https://en.wikibooks.org/wiki/Ada_Programming/Tasking#Selective_Wait]["Tasking" section on the WikiBook "Ada Programming".]]
+- [[http://archive.adaic.com/docs/style-guide/83style/html/sty-06.html][Chapter 6 "Concurrency" at Ada 83 Quality and Style Guide]]
+- [[https://www.adaic.org/resources/add_content/docs/95style/html/sec_6/toc.html][Chapter 6 "Concurrency" at Ada 95 Quality and Style Guide]]
+- [[http://archive.adaic.com/standards/83lrm/html/lrm-09.html][Section 9 "Tasks" at Ada '83 Reference Manual]]
+- [[http://www.ada-auth.org/standards/rm12_w_tc1/html/RM-9.html][Section 9 "Tasks and Synchronization" at Ada 2012 Reference Manual]]
+- [[http://www.ada-auth.org/standards/rm12_w_tc1/html/RM-D.html][Annex D "Real-Time Systems" at Ada 2012 Reference Manual]] (normative) 
+  La mayoría de las secciones de este anexo posee información acerca de prioridad, /dispatching model/, planificador, multiprocesamiento, /dispatching domain/ para multiprocesadores, etc.
+  
+** Python
+#+begin_src latex
+\begin{tikzpicture}
+  [
+  every node/.append style={concept, align=center}
+  ]
+  \path[mindmap,
+  concept color=black, text=white,
+  %% level 1/.append style={sibling angle=75, level distance=7cm},
+  grow cyclic
+  ]
+  node {Concurrencia en Python}
+  %
+  child[concept color=green!50!black]{ node {\texttt{threading}}
+    child[concept color=blue!50!black] {node (threadsinc) {Sincro\-nización}}
+    child[concept color=blue!50!black] {node {GIL}}
+  }
+  child[concept color=green!50!black] {node {\texttt{multi\-processing}}
+    child[concept color=blue!50!black] {node (procsinc) {Sincro\-nización}}
+    child[concept color=blue!50!black] {node {Pools}}
+    child[concept color=red!50!black] {node {\sout{GIL}}}
+  }
+  child[concept color=green!50!black]{ node{\texttt{concurrent. futures}}}
+  child[concept color=green!50!black]{ node{\texttt{subprocess}}}
+  child[concept color=green!50!black]{ node{\texttt{sched}}}
+  child[concept color=green!50!black]{ node{\texttt{queue}}};
+
+  \node[annotation, fill=red!20, below left,
+  left=of procsinc.south west] (ident) {Los mecanismos son idénticos.};
+  
+  \draw[arrows=->, ultra thick, blue, bend left]
+  (procsinc) edge (ident.east);
+  \draw[arrows=->, ultra thick, blue, bend right]
+  (threadsinc) edge (ident.north west);
+\end{tikzpicture}
+#+end_src
+*** Threads
+- https://docs.python.org/3/tutorial/stdlib2.html#multi-threading
+- threading module:
+https://docs.python.org/3/library/threading.html#module-threading
+- http://rosettacode.org/wiki/Dining_philosophers#Python
+- Reader-writer problem:
+http://rosettacode.org/wiki/Synchronous_concurrency#Python
+- Queues to simplify thread creation and processing:
+https://docs.python.org/3/library/queue.html#module-queue
+
+*** Coroutines and tasks
+- https://docs.python.org/3/library/asyncio-task.html?highlight=coroutine
+- asyncio module that implements the ~async~ and ~await~. https://docs.python.org/3/library/asyncio.html?highlight=asyncio#module-asyncio
+- The ~async def~ returns a Coroutine object: https://docs.python.org/3/c-api/coro.html?highlight=coroutine
+- https://docs.python.org/3/reference/compound_stmts.html#async-def
+- PEP-0492 that proposes the Coroutine. https://www.python.org/dev/peps/pep-0492/
 
 
 * Meta     :noexport:
