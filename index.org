@@ -393,20 +393,37 @@ Se explica en la sección [[https://docs.oracle.com/javase/tutorial/essential/co
 
 **** Locks
 
-*** Problemas clásicos
+* Problemas clásicos
 En todos los modelos hay:
 
 - Objetos activos
 - Objetos pasivos : Recursos que se comparten entre todos los objetos activos.
 
-**** Filósofos cenando
+
+** Hilos que no hacen nada
+- Objetos activos: Tareas/hilos
+- Objetos pasivos: Ninguno
+
+Simplemente, son hilos o tareas que no realizan ninguna acción de importancia. Este problema se presenta aquí con la intención de mostrar cómo escribir tareas o probar el funcionamiento de los hilos.
+
+También, es de utilidad para observar el funcionamiento del sistema operativo su forma de reconocer los hilos bajo cierto lenguaje. 
+
+Considere utilizar algún mecanismo de señal para terminar el proceso: Control + C en sistemas basados en Unix o ejecutando ~kill -9 ID_PROCESO~.
+
+*** TODO Implementación
+:PROPERTIES:
+:header-args: :tangle tangled/ada/src/nothing_tasks.adb
+:END:
+
+** Filósofos cenando
 
 - Objetos activos: Filósofos cenando/pensando.
 - Objetos pasivos: tenedores (o palillos).
 
 Se puede utilizar el ~tryAcquire()~ de un semáforo para intentar adquirir un tenedor. Si está libre lo toma, sino lo deja.
 
-**** Barbero dormilón - rendez-vous
+*** TODO Solución
+** Barbero dormilón - rendez-vous
 
 - Objetos activos: Barbero, clientes.
 - Objetos pasivos: corte, barba.
@@ -416,7 +433,9 @@ Se puede utilizar el ~tryAcquire()~ de un semáforo para intentar adquirir un te
 - Barbero despierta al cliente al terminar de razurar
 - Nuevos clientes esperan si el barbero está ocupado.
 
-**** Productor-consumidor
+*** TODO Solución
+
+** Productor-consumidor
 - Objetos activos: Productores y consumidores.
 - Objectos pasivos: datos y buffer.
 
@@ -429,7 +448,7 @@ Productor-consumidor con un buffer de tamaño 1 (de un solo dato) es muy poco ut
 Esquema:
 
 #+BEGIN_SRC ada
-  procedure Productor is
+  task body Productor is
   begin
       loop
           Producir (Dato);
@@ -440,7 +459,7 @@ Esquema:
 #+END_SRC
 
 #+BEGIN_SRC ada
-  procedure Consumidor is
+  task body Consumidor is
   begin
       loop
           dato := Sacar_Dato(Buffer);
@@ -449,13 +468,210 @@ Esquema:
   end Consumidor;
 #+END_SRC
 
+*** Problema sin sincronización
+:PROPERTIES:
+:header-args: :tangle tangled/ada/src/producer_consumer.adb
+:END:
+
+A continuación se detalla el código de productores consumidores con condición de carrera. 
+
+El programa generará una cantidad determinada de productores y consumidores. Los productores generarán una cantidad máxima de números enteros, por ejemplo de 10000 a 0, sin repetir el número. Los consumidores retirarán este número del almacenamiento y lo reportarán a la salida estándar.
+
+**** Bibliotecas necesarias
+Necesitaremos las siguientes biblietecas de Ada para poder almacenar datos dinámicamente e imprimir en pantalla:
+
+#+BEGIN_SRC ada
+with Ada.Containers.Vectors;
+with Ada.Text_IO;
+use Ada.Text_IO;
+#+END_SRC
+
+Luego se comenzará con el programa principal.
+
+#+BEGIN_SRC ada
+procedure Producer_Consumer is
+#+END_SRC
+
+**** Estructuras necesarias
+Se requerirá un vector del dato que se quere producir y consumir. En este caso, el tipo de dato será entero. En Ada, el Vector es un paquete genérico donde se debe instanciar en un paquete usable definiendo el tipo de dato del elemento y del índice. 
+
+#+BEGIN_SRC ada
+    package Data_Vectors is new Ada.Containers.Vectors
+      (Element_Type => Integer,
+       Index_Type => Positive);
+#+END_SRC
+
+Se requerirá dos tipos de tareas, uno para los consumidores y otro para los productores. Se declara una entrada para inicializarlas con un ~Id~ para identificarlas al momento de imprimir en pantalla. Además, se utilizará esta entrada para que las tareas al ser creadas esperen y no se ejecuten hasta que el programa principal les indique.
+
+#+BEGIN_SRC ada
+    task type Consumer_Task is
+        entry Initialize (The_Id : Integer);
+    end Consumer_Task;
+
+    task type Producer_Task is
+        entry Initialize (The_Id : Integer);
+    end Producer_Task;
+#+END_SRC
+
+**** Datos disponibles
+El programa principal y las tareas dispondrán de los siguientes datos: 
+
+- El máximo número de elementos a producir. Éste número es constante.
+- Una instancia de ~Data_Vectors.Vector~ que almacenará los datos producidos.
+- El número de dato actual que se está produciendo. Comenzará con el máximo e irá disminuyendo a medida que se produce un dato.
+
+#+BEGIN_SRC ada
+    Maximum_Element : constant Integer := 10000;
+    Data : Data_Vectors.Vector;
+    Current_Element : Integer := Maximum_Element;
+#+END_SRC
+
+**** Implementación del consumidor
+La tarea para el consumidor requerirá de las siguientes variables locales: una variable temporal para retener el elemento a consumir y su id.
+
+#+BEGIN_SRC ada
+    task body Consumer_Task is
+        Element : Integer;
+        Id : Integer;
+    begin
+#+END_SRC
+
+***** La inicialización del consumidor
+Para inicializar simplemente se asignará el parámetro a la variable local y se reporta el inicio del consumidor en consola.
+
+Cuando la tarea se crea, su ejecución comienza inmediatamente. Esta entrada está declarada como ~accept~ para que se bloquee hasta que reciba el mensaje ~Initialize (The_Id: Integer)~. Al recibirlo, ejecutará el código de inicialización y continuará con la ejecución.
+
+#+BEGIN_SRC ada
+        accept Initialize (The_Id : Integer) do
+            Id := The_Id;
+            Put_Line ("T" & Id'Image & "> Consumer initialized.");
+        end Initialize;
+#+END_SRC
+
+***** Consumir hasta el último elemento
+La siguiente repetitiva retira un elemento del vector global y lo muestra en pantalla. Esto será realizado mientras que el último elemento producido sea mayor que cero.
+
+#+BEGIN_SRC ada
+        while Current_Element > 0 loop
+            Element := Data.First_Element;
+            Data.Delete_First;
+
+            Put_Line ("T" & Id'Image & "> Consumed element:");
+            Put_Line ("    " & Element'Image);
+        end loop;
+#+END_SRC
+
+***** Fin del consumidor
+Para identificar cuándo termina, se programará al consumidor para que escriba en la salida que ha concluido.
+
+#+BEGIN_SRC ada
+        Set_Colour (Green);
+        Put_Line ("T" & Id'Image & "> Consumer ended.");
+        Default_Colour;
+
+    end Consumer_Task;
+#+END_SRC
+
+**** Implementación del productor
+En el caso del productor, solo se necesita almacenar localmente el id de cada uno.
+
+#+BEGIN_SRC ada
+    task body Producer_Task is
+        Id : Integer;
+    begin
+#+END_SRC
+
+La inicialización es análoga al consumidor.
+
+#+BEGIN_SRC ada
+        accept Initialize (The_Id : Integer) do
+            Id := The_Id;
+            Put_Line ("T" & Id'Image & "> Producer initialized.");
+        end Initialize;
+#+END_SRC
+
+***** Producir hasta el último elemento
+La siguiente repetitiva incorporará un dato entero dentro del Vector compartido con los consumidores. Luego, reportará qué elemento se produjo por terminal.
+
+A medida que se van produciendo, el índice del elemento actual se reducirá en uno. Obsérvese que se crearán varios productores, por lo que se podría esperar que el índice será modificado por cada uno de ellos delegando la producción de uno o varios ítems a los distintos productores.
+
+#+BEGIN_SRC ada
+        while Current_Element > 0 loop
+            Data.Append (Current_Element);
+
+            Put_Line ("T" & Id'Image & "> Produced element:");
+            Put_Line ("    " & Current_Element'Image);
+
+            Current_Element := Current_Element - 1;
+        end loop;
+#+END_SRC
+
+***** Fin del productor
+Al terminar de producir todos los ítems, se reporta en la salida estándar que el productor concluyó con su tarea.
+
+#+BEGIN_SRC ada
+        Put_Line ("T" & Id'Image & "> Producer ended.");
+
+    end Producer_Task;
+#+END_SRC
+
+**** Progama principal
+La tarea de la tarea o programa principal es la de inicializar cada tarea y permitir su ejecución. 
+
+Se requerirá crear y almacenar los productores y consumidores en un arreglo. Se crearán hasta 20 tareas de cada uno. La variable ~I~ será utilizada como índice para asignarles un identificador único a cada tarea.
+
+#+BEGIN_SRC ada
+    Producers : array (1 .. 20) of Producer_Task;
+    Consumers : array (1 .. 20) of Consumer_Task;
+    I : Integer := 0;
+
+begin
+#+END_SRC
+
+Al llegar al ~begin~ del programa principal, las tareas comenzarán su ejecución. Sin embargo, todas se detendrán al encontrar  ~accept Initialize (The_Id: Integer)~ a la espera de dicho mensaje. 
+
+Cabe aclarar que la inicialización es para asignarles a las tareas un identificador númerico fácil de leer. Sin embargo, no es necesario puesto que las tareas ya se ejecutan automáticamente y ya poseen un identificador asignado por el lenguaje Ada. En este caso se realiza como convención y para que las tareas esperen a ser iniciadas al mismo tiempo.
+
+Por último, cuando la tarea principal se termine de ejecutar, el programa no se cerrará hasta que todas las tareas dependientes finalicen.
+
+A continuación, se procede a inicializar las tareas con su para asignarles su Id numérico.
+
+#+BEGIN_SRC ada
+    Put_Line ("Main thread");
+
+    for Producer of Producers loop
+        Producer.Initialize (I);
+        I := I + 1;
+    end loop;
+
+    for Consumer of Consumers loop
+        Consumer.Initialize (I);
+        I := I + 1;
+    end loop;
+
+    Put_Line ("End of main thread");
+end Producer_Consumer;
+#+END_SRC
+
+**** Mejoras: afinidad, prioridad y dominio de CPU
+Al declarar las tareas se puede indicar la afinidad, en otras palabras, en qué CPU se debe ejecutar, la prioridad de cada tarea y el dominio del CPU.
+
+El dominio de CPU permite agrupar los CPU en dominios y asignarles a las tareas dicho dominio. O sea, repartir ciertas tareas a un grupo de CPUs.
+
+Para más información, ver el estándar de Ada en el anexo D.16: [[info:arm2012#D.16][Info manual: Ada Reference Manual, Anexo D.16]] ó en la Web visitar [[http://www.ada-auth.org/standards/rm12_w_tc1/html/RM-D-16.html][Ada Conformity Assesment Authority, Ada Reference Manual, Annex D.16 Multiprocessor Implementation]].
+
+*** TODO Solución con semáforos
+:PROPERTIES:
+:header-args: :tangle tangled/ada/src/producer_consumer_semaphore.adb
+:END:
 
 
-**** Lectores-escritores
 
-**** Cocinero-comensal
+** TODO Lectores-escritores
 
-**** Fumadores
+** TODO Cocinero-comensal
+
+** Fumadores
 Todos los fumadores tienen que entrar a la sala. Cada fumador tiene algún item para armar el cigarrillo. Al entrar a la sala, arma el cigarrillo y lo fuma. En la sala se incorpora un item necesario para armar el cigarrillo.
 
 - Objeto activos: Fumadores
@@ -463,6 +679,7 @@ Todos los fumadores tienen que entrar a la sala. Cada fumador tiene algún item 
 
 La sala es el monitor con métodos synchronized: ~entrar_fumar(int ingredientes)~, ~terminar_fumar()~ y ~colocar(int noesta)~. El último incorpora un ítem en la sala para que el fumador arme el cigarrillo.
 
+*** TODO Solución
 
 
 * Meta     :noexport:
