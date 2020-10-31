@@ -1,6 +1,7 @@
 El siguiente es un apunte escrito para el curso /Tópicos Avanzados en Programación Concurrente/. 
 
 - Fuentes de este apunte: [[https://github.com/cnngimenez/apuntes-TAPC][Repositorio de Github]]
+- Códigos extraídos (/tangled/) de este documento se encuentran en el directorio ~tangled/*~ de este repositorio.
 
 https://i.creativecommons.org/l/by-sa/4.0/88x31.png
 
@@ -8,6 +9,15 @@ This work is licensed under a [[http://creativecommons.org/licenses/by-sa/4.0/][
 
 Este obra está bajo una [[http://creativecommons.org/licenses/by-sa/4.0/][licencia de Creative Commons Reconocimiento-CompartirIgual 4.0 Internacional]].
 
+
+Para compilar los códigos de Ada 2012 se requiere del compilador GNAT y la utilidad gprbuild. La siguiente secuencia de comandos permite generar los binarios:
+
+: cd tangled/ada
+: gprbuild tapc.gpr -p
+
+Luego, los binarios se pueden encontrar en la carpeta ~tangled/ada/bin~ y se ejecutan de la forma convencional:
+
+: bin/producer_consumer
 
 #+BEGIN_SRC latex :file imgs/1.overview.png :results link file
 \begin{tikzpicture}
@@ -158,7 +168,7 @@ Un hilo está activo cuando está "con vida" en el sistema. O sea que está en u
 
 ** Estados
 
-#+BEGIN_SRC dot :file imgs/estados.png :results link file
+#+BEGIN_SRC dot :file imgs/estados.png :results silent :exports none 
 digraph {
 rankdir=LR;
 
@@ -176,10 +186,47 @@ ejec -> Listo [label="scheduler"];
 Bloqueado -> Listo [label="Se desbloquea/wait()"];
 ejec -> Bloqueado [label="Se bloquea/wait()"];
 }
+#+END_SRC 
+
+#+BEGIN_SRC latex :file imgs/2.estados.png :results link file
+\begin{tikzpicture}
+  [every node/.append style={ellipse}]
+
+  \path (5.75, 2) node (livea) {};
+  \path (14.25, -4) node (liveb) {};
+  \draw[dashed, very thick, fill=green!90!black] (livea) rectangle (liveb);
+  \path (10, -4) node[draw, dashed, thick, trapezium, above] {\bf Activo};
+
+  
+  \node (init) {};
+  \node[draw] (crea) [right=2 of init]{Creado};
+  \node[draw] (list) [right=2 of crea]{Listo};
+
+  \node (midlist) [right=2 of list] {};
+
+  \node[draw, fill=green!70] (ejec) [right=of midlist]{En ejecución};
+  
+  \node[draw, fill=red!70, below=2 of midlist] (bloc) {Bloqueado};
+  \node[draw] (term) [right=2 of ejec]{Terminado};
+  \node [right=2 of term] (end) {};
+
+  \draw[arrows=->] (init) edge node[above] {new()} (crea);
+  \draw[arrows=->] (crea) edge node[above] {start()} (list);
+
+  \draw[arrows=->, bend left] (list) edge node[above] {planificado} (ejec);
+  \draw[arrows=->, bend left] (ejec) edge (list);
+  
+  \draw[arrows=->] (ejec) edge node[above] {termina/falla} (term);
+  \draw[arrows=->] (term) edge (end);
+
+  \draw[arrows=->, bend left] (ejec) edge node[above, sloped, near start, allow upside down] {Se bloquea} (bloc);
+  \draw[arrows=->, bend left] (bloc) edge node[above, sloped, allow upside down] {Se desbloquea} (list);
+  
+\end{tikzpicture}
 #+END_SRC
 
 #+RESULTS:
-[[file:imgs/estados.png]]
+[[file:imgs/2.estados.png]]
 
 
 *** Creado
