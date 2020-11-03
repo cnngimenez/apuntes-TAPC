@@ -408,6 +408,82 @@ Considere utilizar algún mecanismo de señal para terminar el proceso: Control 
 :header-args: :tangle tangled/ada/src/nothing_tasks.adb
 :END:
 
+**** Bibliotecas necesarias
+Las siguientes bibliotecas son necesarias para identificar la cantidad de CPUs, poder definir dominios de CPU, identificar cada una de las tareas y para imprimir en pantalla.
+
+Luego, se puede comenzar con el programa principal.
+
+#+BEGIN_SRC ada
+with System.Multiprocessors;
+use System.Multiprocessors;
+with System.Multiprocessors.Dispatching_Domains;
+use System.Multiprocessors.Dispatching_Domains;
+
+with Ada.Task_Identification;
+use Ada.Task_Identification;
+with Ada.Text_IO;
+use Ada.Text_IO;
+
+procedure Nothing_Tasks is
+#+END_SRC
+
+**** La tarea
+Se utilizará un solo tipo de tarea denominada ~Nothing_Task~. Su declaración es sin entradas ni variables. Se comentan una serie de pragmas para asignarle la afinidad y la prioridad.
+
+#+BEGIN_SRC ada
+    task type Nothing_Task is
+        --  Uncomment the following pragma tu run all tasks on the second CPU.
+        --  pragma CPU (2);
+        --  pragma Priority (2);
+        --  pragma Dispatching_Domain (The_Domain);
+    end Nothing_Task;
+#+END_SRC
+
+La tarea solo realizará una asignación y una suma que es irrelevante.
+
+#+BEGIN_SRC ada
+    task body Nothing_Task is
+        I : Positive;
+    begin
+        loop
+            --  Do just the same... nothing!
+            I := 1;
+            I := I + 1;
+        end loop;
+    end Nothing_Task;
+#+END_SRC
+
+A continuación, se crearán hasta un máximo de 10 tareas. Según el estándar de Ada, estas tareas serán distribuídas por los procesadores (ver [[http://www.ada-auth.org/standards/rm12_w_tc1/html/RM-D.html][Annex D "Real-Time Systems" en "Ada 2012 Reference Manual]]")
+
+#+BEGIN_SRC ada
+    Nothing : array (1 .. 10) of Nothing_Task;
+#+END_SRC
+
+**** Programa principal
+El programa principal mostrará la cantidad de CPUs detectados y algunos datos identificatorios de las tareas. Observar que las tareas comenzarán su ejecución luego del ~begin~ del programa principal, por lo que no hay que llamar a ningún método de inicio como el ~start()~.
+
+Las tareas no tienen finalización y el programa no terminará hasta que todas sus tareas dependientes terminen. En otras palabras, el programa quedará en funcionamiento hasta que el usuario le indique al sistema operativo que detenga al proceso de forma forzada.
+
+#+BEGIN_SRC ada
+begin
+    Put_Line ("Main thread");
+
+    Put_Line ("CPU detected: "
+                & CPU'Image (Number_Of_CPUs));
+
+    for I of Nothing loop
+        Put ("Task " & Image (I'Identity) & ": ");
+        if Get_CPU (I'Identity) = Not_A_Specific_CPU then
+            Put_Line ("CPU assigned: Not specified (0 value)");
+        else
+            Put_Line ("CPU assigned:" & CPU'Image (Get_CPU (I'Identity)));
+        end if;
+    end loop;
+
+    Put_Line ("End of main thread");
+end Nothing_Tasks;
+#+END_SRC
+
 ** Filósofos cenando
 
 - Objetos activos: Filósofos cenando/pensando.
@@ -653,7 +729,7 @@ El dominio de CPU permite agrupar los CPU en dominios y asignarles a las tareas 
 
 Para más información, ver el estándar de Ada en el anexo D.16: [[info:arm2012#D.16][Info manual: Ada Reference Manual, Anexo D.16]] ó en la Web visitar [[http://www.ada-auth.org/standards/rm12_w_tc1/html/RM-D-16.html][Ada Conformity Assesment Authority, Ada Reference Manual, Annex D.16 Multiprocessor Implementation]].
 
-*** TODO Solución con semáforos
+*** Solución con semáforos
 :PROPERTIES:
 :header-args: :tangle tangled/ada/src/producer_consumer_semaphore.adb
 :END:
