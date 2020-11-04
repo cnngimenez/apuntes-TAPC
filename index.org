@@ -734,7 +734,305 @@ Para más información, ver el estándar de Ada en el anexo D.16: [[info:arm2012
 :header-args: :tangle tangled/ada/src/producer_consumer_semaphore.adb
 :END:
 
+Esta solución usará tres tipos de tareas: una cosumidora, una productora y una contadora. El rol de la tarea contadora es registrar cuantos consumidores han finalizado y mostrar la cantidad de datos sin consumir cuando no hayan tareas que consuma. Mostrar esta cantidad al terminar cada hilo podría producir una condición de carrera. Tampoco serviría mostrar la cantidad al finalizar el programa principal puesto que es porbable que sea el primer hilo que termine antes que los productores y consumidores.
 
+**** Bibliotecas necesarias
+Se necesitan bibliotecas para almacenar los datos producidos, imprimir en pantalla y utilizar semáforos.
+
+La biblioteca de semáforos es parte de la implementación GNAT y no del estándar (por ello, no se encuentra incluido dentro del paquete Ada). En Ada se define otro tipo de sincronización basado en mensajes mutuamente excluyentes dejando el resto de los mecanismos para implementar.
+
+#+BEGIN_SRC ada
+with Ada.Containers.Vectors;
+with Ada.Text_IO;
+use Ada.Text_IO;
+with GNAT.Semaphores;
+use GNAT.Semaphores;
+
+procedure Producer_Consumer_Semaphore is
+#+END_SRC
+
+**** Datos y elementos necesarios
+Se definirán dos constantes: la cantidad de consumidores y productores a crear. También se necesitará la cantidad máxima de datos a producir.
+
+#+BEGIN_SRC ada
+    Consumers_Count : constant Positive := 20;
+    Producers_Count : constant Positive := 20;
+    Maximum_Element : constant Integer := 10000;
+#+END_SRC
+
+Luego, se definirán los semáforos. ~Data_Semaphore~ mantendrá la exclusión mutua al momento de utilizar los datos producidos y ~Current_Element_Semaphore~ evitará la condición de carrera de la variable que indica el siguiente elemento a producir.
+
+Se utilizarán los dos tipos de semáforos: El binario y el no binario. Para crear una instancia de cada tipo se debe indicar el valor inicial de cada semáforo.
+
+#+BEGIN_SRC ada
+    Data_Semaphore : Counting_Semaphore
+      (Initial_Value => 0,
+      Ceiling => Default_Ceiling);
+    Current_Element_Semaphore : Binary_Semaphore
+      (Initially_Available => True,
+       Ceiling => Default_Ceiling);
+#+END_SRC
+
+La variable ~Data~ será utilizada para guardar los datos a consumir. Será un vector con elementos de tipo Integer e índice de tipo Positive. Recordar que el paquete ~Ada.Containers.Vectors~ es genérico por lo que se debe crear un paquete instancia de éste.
+
+#+BEGIN_SRC ada
+    package Data_Vectors is new Ada.Containers.Vectors
+      (Element_Type => Integer,
+       Index_Type => Positive);
+
+    Data : Data_Vectors.Vector;
+#+END_SRC
+
+La variable ~Current_Element~ indicará el elemento a producirse. Cada productor consultará esta variable y la decrementará en uno al momento de crear un dato. Iniciará con el máximo valor posible.
+
+#+BEGIN_SRC data
+    Current_Element : Integer := Maximum_Element;
+#+END_SRC
+
+**** Declaración de las tareas
+Se requerirán tres tareas: Los consumidores, los productores y una tarea que contará cada consumidor que finaliza.
+
+Las tareas consumidores y productores definirán una entrada llamada ~Initialize~ que será utilizada para brindarles un identificador. La tarea contadora define una entrada ~Add_Consumer (Id : Integer)~, que será el mensaje enviado por el consumidor previo a terminar.
+
+#+BEGIN_SRC ada
+    task type Consumer_Task is
+        --  Give an ID to the Task instance.
+        entry Initialize (The_Id : Integer);
+    end Consumer_Task;
+
+    task type Producer_Task is
+        --  Give an ID to the Task instance.
+        entry Initialize (The_Id : Integer);
+    end Producer_Task;
+
+    task type Count_Task is
+        entry Add_Consumer (Id : Integer);
+    end Count_Task;
+#+END_SRC
+
+**** Implementación de las tareas
+Previo a la implementación de las tareas, es necesario crear la tarea contadora. Es preciso definir la variable que la contendrá aquí para poder hacerle referencia dentro de la implementación de los consumidores.
+
+#+BEGIN_SRC ada
+    Counter : Count_Task;
+#+END_SRC
+
+***** Tarea consumidor
+
+La tarea consumidor necesita de dos variables: una para guardar el elemento a consumir y otra para preservar su identificador. También se definirán dos procedimientos privados: El procedimiento para consumir el elemento y otro para mostrar un string en pantalla con el Id de la tarea.
+
+#+BEGIN_SRC ada
+    task body Consumer_Task is
+        Element : Integer;
+        Id : Integer;
+
+        procedure Consume_Element;
+        procedure Show (S : String);
+
+        procedure Consume_Element is
+        begin
+            Element := Data.First_Element;
+            Data.Delete_First;
+
+            Show ("Consumed element:" & Element'Image);
+        end Consume_Element;
+
+        procedure Show (S : String) is
+        begin
+            Put_Line ("C" & Id'Image & "> " & S);
+        end Show;
+    begin
+#+END_SRC
+
+Al comenzar, el consumidor espera por el mensaje ~Initialize~ para recibir su identificador. Apenas lo recibe, muestra que inicia su trabajo.
+
+#+BEGIN_SRC ada
+        accept Initialize (The_Id : Integer) do
+            Id := The_Id;
+            Show ("Consumer initialized.");
+        end Initialize;
+#+END_SRC
+
+Luego, comienza el bucle esperando por un dato. Utiliza el semáforo para esperar por el dato. Cuando un productor haya terminado de producir, el semáforo se libera permitiendo a un consumidor continuar.
+
+#+BEGIN_SRC ada
+        loop
+            Data_Semaphore.Seize;
+#+END_SRC
+
+Inmediatamente, el consumidor se vuelve a bloquear esperando utilizar la variable ~Current_Element~ con la intención de ver si su trabajo terminó. El consumidor termina su actividad cuando encuentra que resta un dato por cada hilo por consumir. Apenas termina de utilizar la variable, libera el semáforo correspondiente. La instrucción ~exit when ...~ permite salir del bucle cuando la condición indicada se cumple.
+
+#+BEGIN_SRC ada
+            Current_Element_Semaphore.Seize;
+            exit when Current_Element <= Consumers_Count and then
+              Natural (Data.Length) <= Consumers_Count;
+            Current_Element_Semaphore.Release;
+#+END_SRC
+
+A continuación, consume el elemento y libera el semáforo de los datos.
+
+#+BEGIN_SRC ada
+            Consume_Element;
+            Data_Semaphore.Release;
+        end loop;
+#+END_SRC
+
+Los últimos pasos del consumidor consiste en liberar el semáforo de ~Current_Element~ que fue adquirido previo a salir del bucle (previo a la instrucción ~exit when ...~ Luego, consumir el elemento que falta y declarar a la tarea contadora que su trabajo terminó.
+
+Considerar que al salir del bucle, ya se produjeron casi todos los datos y solo resta un dato por cada hilo consumidor. 
+
+#+BEGIN_SRC ada
+        Current_Element_Semaphore.Release;
+
+        Consume_Element;
+
+        Counter.Add_Consumer (Id);
+        Show ("Consumer ended.");
+    end Consumer_Task;
+#+END_SRC
+
+***** Tarea contador
+El contador solo necesita una variable local que es la que mantiene el número de consumidores registrados. Como solo se utilizará una sola tarea, no hacen falta semáforos.
+
+#+BEGIN_SRC ada
+    task body Count_Task is
+        Counter : Natural := 0;
+    begin
+#+END_SRC
+
+Apenas inicia, la tarea entra en un bucle hasta que todos los consumidores terminaron. El bucle consiste en:
+
+1. Espera hasta que un consumidor emita el mensaje ~Add_Consumer~.
+2. Cuando lo recibe, muestra en pantalla el Id del consumidor y suma uno al contador.
+3. Verifica si ya registro a todos los consumidores. Si es así, termina el bucle.
+
+#+BEGIN_SRC ada
+        loop
+            accept Add_Consumer (Id : Integer) do
+                Put_Line ("Counter> Consumer " & Id'Image
+                            & " registered.");
+                Counter := Counter + 1;
+                Put_Line ("Counter> Number: " & Counter'Image
+                            & "/" & Consumers_Count'Image);
+
+            end Add_Consumer;
+
+            exit when Counter = Consumers_Count;
+        end loop;
+#+END_SRC
+
+Finalmente, indica la cantidad de datos que restan consumir. Esto es útil para verificar si el algoritmo funcionó correctamente.
+
+#+BEGIN_SRC ada
+        Put_Line ("Counter> All consumer endings registered.");
+        Put_Line ("Counter> Data not consumed:" & Data.Length'Image);
+    end Count_Task;
+#+END_SRC
+
+***** Tarea productor
+El productor utilizará una variable local para mantener su identificador. Análogo al consumidor tendrá dos procedimientos locales: uno para mostrar un mensaje con su Id y otro para producir el dato.
+
+#+BEGIN_SRC ada
+    task body Producer_Task is
+        Id : Integer;
+
+        procedure Show (S : String);
+        procedure Produce_Element;
+
+        procedure Produce_Element is
+        begin
+            Data.Append (Current_Element);
+            Show ("Produced element:" & Current_Element'Image);
+
+            Current_Element := Current_Element - 1;
+        end Produce_Element;
+
+        procedure Show (S : String) is
+        begin
+            Set_Colour (Red);
+            Put_Line ("P" & Id'Image & "> " & S);
+            Default_Colour;
+        end Show;
+
+    begin
+#+END_SRC
+
+Al comenzar, la tarea se quedará esperando a su inicialización. Como el consumidor, al recibir el mensaje mostrará en pantalla que comienza su actividad.
+
+#+BEGIN_SRC ada
+        accept Initialize (The_Id : Integer) do
+            Id := The_Id;
+            Show ("Producer initialized.");
+        end Initialize;
+#+END_SRC
+
+Luego, inicia el bucle. Primero, consultará si ya produjo lo necesario. Pero para ello, necesitará consultar la variable ~Current_Element~ y para evitar una condición de carrera utilizará el semáforo correspondiente.
+
+Apenas detecta que ya no hay elementos que producir, libera el semáforo para evitar deadlock con los otros productores y sale del bucle.
+#+BEGIN_SRC ada
+            Current_Element_Semaphore.Seize;
+
+            if Current_Element <= 0 then
+                Show ("Exiting");
+                Current_Element_Semaphore.Release;
+
+                --  enough data produced! get out of the loop!
+                exit when Current_Element <= 0;
+            end if;
+#+END_SRC
+
+A continuación produce un elemento. El semáforo ~Current_Element_Semaphore~ está aún activo porque la variable ~Current_Element~ será consultada para producer el elemento. Esto evitará una condición de carrera entre productores.
+
+Al terminar de producir, se libera el semáforo para ~Data~. Como es un semáforo contador, la operación para liberar ~Release~ sumará uno al contador permitiendo a los consumidores continuar con su trabajo si el semáforo es mayor que cero (mientras que haya un elemento por consumir). Luego, se libera ~Current_Element_Semaphore~ para permitir a los productores y consumidores usar la variable correspondiente.
+
+#+BEGIN_SRC ada
+            Produce_Element;
+
+            Data_Semaphore.Release;
+            Current_Element_Semaphore.Release;
+        end loop;
+#+END_SRC
+
+Cuando el productor sale del bucle, muestra en pantalla que finalizó y concluye su ejecución.
+
+#+BEGIN_SRC ada
+        Show ("Producer ended.");
+    end Producer_Task;
+#+END_SRC
+
+**** Programa principal
+Los siguientes arreglos crearán y contendrán las tareas productoras y consumidoras. Se utilizará la variable ~I~ para brindar un identificador único a cada tarea.
+
+Recordar que al comenzar el programa principal los hilos ya inician su ejecución, aunque estarán esperando recibir la entrada ~Initialize~.
+
+#+BEGIN_SRC ada
+    Producers : array (1 .. Producers_Count) of Producer_Task;
+    Consumers : array (1 .. Consumers_Count) of Consumer_Task;
+    I : Integer := 0;
+begin
+    Put_Line ("Main thread");
+#+END_SRC
+
+El programa principal le brindará el Id a productor primero, y luego a cada consumidor.
+
+#+BEGIN_SRC ada
+    for Producer of Producers loop
+        Producer.Initialize (I);
+        I := I + 1;
+    end loop;
+
+    for Consumer of Consumers loop
+        Consumer.Initialize (I);
+        I := I + 1;
+    end loop;
+#+END_SRC
+
+En este momento de la ejecución, los hilos ya están creando y consumiendo datos. En paralelo, el hilo principal se terminará. Pero, el programa no finaliza hasta que todos los hilos terminen.
+
+#+BEGIN_SRC ada
+    Put_Line ("End of main thread");
+end Producer_Consumer_Semaphore;
+#+END_SRC
 
 ** TODO Lectores-escritores
 
